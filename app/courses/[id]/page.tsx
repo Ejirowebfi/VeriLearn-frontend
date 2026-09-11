@@ -20,13 +20,14 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
 
   const { isEnrolled, enroll } = useEnrollment();
   const { isComplete, courseProgress } = useProgress();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   const enrolled = isEnrolled(c.id);
   const progress = courseProgress(c.id, c.lessons.length);
 
   function handleEnroll() {
+    if (loading) return;
     if (!user) { router.push(`/login?from=/courses/${c.id}`); return; }
     enroll(c.id);
   }
@@ -86,8 +87,8 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
             Continue learning →
           </Link>
         ) : (
-          <button onClick={handleEnroll} className="rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors">
-            Enroll for free
+          <button onClick={handleEnroll} disabled={loading} className="rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors disabled:opacity-60">
+            {loading ? "Loading…" : "Enroll for free"}
           </button>
         )}
       </div>
