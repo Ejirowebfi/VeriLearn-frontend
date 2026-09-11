@@ -61,7 +61,7 @@ export default function ProfilePage() {
       <h2 className="mb-4 font-semibold text-zinc-900 dark:text-white">Enrolled Courses</h2>
       {enrolledCourses.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-700 p-10 text-center">
-          <p className="text-sm text-zinc-500">You haven't enrolled in any courses yet.</p>
+          <p className="text-sm text-zinc-500">You haven&apos;t enrolled in any courses yet.</p>
           <Link href="/courses" className="mt-3 inline-block text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
             Browse courses →
           </Link>

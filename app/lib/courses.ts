@@ -9,6 +9,7 @@ export interface Course {
   title: string;
   description: string;
   tag: string;
+  topic: string;
   duration: string;
   lessons: Lesson[];
 }
@@ -19,6 +20,7 @@ export const courses: Course[] = [
     title: "Intro to TypeScript",
     description: "Master types, interfaces, generics, and the TypeScript compiler from the ground up.",
     tag: "Beginner",
+    topic: "TypeScript",
     duration: "4h 30m",
     lessons: [
       { title: "What is TypeScript?", duration: "12 min", content: "TypeScript is a typed superset of JavaScript that compiles to plain JS. It adds optional static typing, classes, and modules." },
@@ -33,6 +35,7 @@ export const courses: Course[] = [
     title: "Next.js App Router",
     description: "Build full-stack apps with server components, layouts, and streaming in Next.js.",
     tag: "Intermediate",
+    topic: "Next.js",
     duration: "5h 15m",
     lessons: [
       { title: "App Router fundamentals", duration: "20 min", content: "The App Router uses a file-system based router built on top of React Server Components." },
@@ -47,6 +50,7 @@ export const courses: Course[] = [
     title: "Tailwind CSS Fundamentals",
     description: "Design beautiful UIs fast with utility-first CSS.",
     tag: "Beginner",
+    topic: "CSS",
     duration: "2h 45m",
     lessons: [
       { title: "Utility-first basics", duration: "15 min", content: "Instead of writing custom CSS, Tailwind provides thousands of utility classes to build designs directly in your markup." },
@@ -61,6 +65,7 @@ export const courses: Course[] = [
     title: "React Server Components",
     description: "Understand the React 19 rendering model and server/client boundaries.",
     tag: "Advanced",
+    topic: "React",
     duration: "3h 50m",
     lessons: [
       { title: "RSC mental model", duration: "20 min", content: "Server components render on the server and send HTML. They have zero JS bundle cost on the client." },
@@ -75,6 +80,7 @@ export const courses: Course[] = [
     title: "CI/CD with GitHub Actions",
     description: "Automate builds, tests, and deployments from first principles.",
     tag: "Intermediate",
+    topic: "CI/CD",
     duration: "3h 20m",
     lessons: [
       { title: "Workflow basics", duration: "15 min", content: "Workflows are YAML files in .github/workflows/ that define automated processes triggered by events." },
@@ -89,6 +95,7 @@ export const courses: Course[] = [
     title: "Load Testing with k6",
     description: "Write performance scenarios, set thresholds, and read Grafana dashboards.",
     tag: "Intermediate",
+    topic: "Performance",
     duration: "2h 30m",
     lessons: [
       { title: "k6 quickstart", duration: "15 min", content: "k6 is a developer-centric load testing tool. Write scripts in JavaScript and run them from the CLI." },

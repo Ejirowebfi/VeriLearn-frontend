@@ -49,7 +49,7 @@ function CoursesContent() {
   const filteredCourses = courses.filter((c) => {
     if (query && !`${c.title} ${c.description}`.toLowerCase().includes(query.toLowerCase())) return false;
     if (selectedLevels.size > 0 && !selectedLevels.has(c.tag)) return false;
-    if (selectedTopics.size > 0) return false; // courses have no topic field
+    if (selectedTopics.size > 0 && !selectedTopics.has(c.topic)) return false;
     return true;
   });
 
@@ -168,23 +168,6 @@ function CoursesContent() {
 }
 
 export default function CoursesPage() {
-  const [selectedLevels, setSelectedLevels] = useState<Set<string>>(new Set());
-  const [selectedTopics, setSelectedTopics] = useState<Set<string>>(new Set());
-  const [search, setSearch] = useState("");
-
-  function toggle(set: Set<string>, value: string): Set<string> {
-    const next = new Set(set);
-    if (next.has(value)) { next.delete(value); } else { next.add(value); }
-    return next;
-  }
-
-  const filtered = courses.filter((c) => {
-    const matchLevel = selectedLevels.size === 0 || selectedLevels.has(c.tag);
-    const matchTopic = selectedTopics.size === 0 || selectedTopics.has(c.tag);
-    const matchSearch = search === "" || c.title.toLowerCase().includes(search.toLowerCase());
-    return matchLevel && matchTopic && matchSearch;
-  });
-
   return (
     <>
       {/* Hero banner */}
