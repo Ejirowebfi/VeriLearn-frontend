@@ -25,6 +25,7 @@ jobs:
         run: npm run build && npm run start &
         env:
           NODE_ENV: production
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET || 'ci-only-secret-not-for-production-use' }}
 
       - name: Wait for app to be ready
         run: npx wait-on http://localhost:3000 --timeout 60000
@@ -59,6 +60,7 @@ jobs:
         run: npm run build && npm run start &
         env:
           NODE_ENV: production
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET || 'ci-only-secret-not-for-production-use' }}
 
       - name: Wait for app to be ready
         run: npx wait-on http://localhost:3000 --timeout 60000

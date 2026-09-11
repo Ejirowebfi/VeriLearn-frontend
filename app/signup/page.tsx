@@ -14,7 +14,7 @@ function validate(name: string, email: string, password: string) {
 }
 
 export default function SignupPage() {
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -30,10 +30,10 @@ export default function SignupPage() {
     setErrors({});
     setLoading(true);
     try {
-      await login(email, password);
+      await signup(name, email, password);
       router.push("/dashboard");
-    } catch {
-      setErrors({ form: "Something went wrong. Please try again." });
+    } catch (err) {
+      setErrors({ form: (err as Error).message || "Something went wrong. Please try again." });
     } finally {
       setLoading(false);
     }

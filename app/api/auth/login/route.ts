@@ -1,18 +1,13 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { createToken } from "../../../lib/auth";
-
-const USERS = [
-  { id: 1, name: "Alice", email: "alice@example.com", password: "password123" },
-  { id: 2, name: "Bob", email: "bob@example.com", password: "password123" },
-  { id: 3, name: "Test User", email: "test@example.com", password: "password123" },
-];
+import { checkPassword, findUserByEmail } from "../../../lib/users";
 
 export async function POST(request: NextRequest) {
   const { email, password } = await request.json();
 
-  const user = USERS.find((u) => u.email === email && u.password === password);
-  if (!user) {
+  const user = typeof email === "string" ? findUserByEmail(email) : undefined;
+  if (!user || typeof password !== "string" || !checkPassword(user, password)) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 

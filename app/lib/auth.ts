@@ -1,9 +1,23 @@
 import crypto from "crypto";
 
-// Demo-app secret. In a real deployment this must come from an env var
-// (e.g. `process.env.AUTH_SECRET`) so tokens can't be forged by anyone
-// who has read the source.
-const SECRET = process.env.AUTH_SECRET || "verilearn-dev-secret-change-me";
+const DEV_SECRET = "verilearn-dev-secret-change-me";
+
+// Resolved lazily (per sign/verify call, not at module load) so a missing
+// AUTH_SECRET never breaks `next build` — only actual auth requests fail.
+function getSecret(): string {
+  const secret = process.env.AUTH_SECRET;
+  if (secret) return secret;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "AUTH_SECRET environment variable is required in production. Generate one " +
+        "with `openssl rand -base64 32` and set it before deploying — without it, " +
+        "session tokens would be signed with a secret that's public in this repo."
+    );
+  }
+
+  return DEV_SECRET;
+}
 
 export interface SessionPayload {
   id: number;
@@ -12,7 +26,7 @@ export interface SessionPayload {
 }
 
 function sign(body: string): string {
-  return crypto.createHmac("sha256", SECRET).update(body).digest("base64url");
+  return crypto.createHmac("sha256", getSecret()).update(body).digest("base64url");
 }
 
 export function createToken(payload: SessionPayload): string {

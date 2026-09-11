@@ -230,6 +230,7 @@ If any k6 threshold is breached, the action exits with a non-zero code and the P
 | `BASE_URL` | `http://localhost:3000` | Target URL for the k6 load test |
 | `NODE_ENV` | `development` | Set to `production` for optimised builds |
 | `K6_SCENARIO` | _(unset — all scenarios)_ | Set to `ci` to run only smoke, load, and stress (skips spike and soak) |
+| `AUTH_SECRET` | _(dev-only fallback)_ | **Required in production.** Signs session tokens (`app/lib/auth.ts`). Generate with `openssl rand -base64 32`. The app throws on any auth request if unset and `NODE_ENV=production` — this is intentional, not a bug. |
 
 ---
 

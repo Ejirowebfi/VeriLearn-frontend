@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { useAuth } from "./AuthContext";
 
 interface EnrollmentContextValue {
   enrolled: Set<number>;
@@ -10,12 +11,14 @@ interface EnrollmentContextValue {
 
 const EnrollmentContext = createContext<EnrollmentContextValue | null>(null);
 
-const STORAGE_KEY = "verilearn_enrolled";
+function storageKey(email: string) {
+  return `verilearn_enrolled:${email}`;
+}
 
-function readEnrolled(): Set<number> {
+function readEnrolled(email: string): Set<number> {
   if (typeof window === "undefined") return new Set();
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey(email));
     return raw ? new Set(JSON.parse(raw) as number[]) : new Set();
   } catch {
     return new Set();
@@ -23,17 +26,31 @@ function readEnrolled(): Set<number> {
 }
 
 export function EnrollmentProvider({ children }: { children: ReactNode }) {
-  const [enrolled, setEnrolled] = useState<Set<number>>(readEnrolled);
+  const { user } = useAuth();
+  const email = user?.email ?? null;
+
+  const [loadedForEmail, setLoadedForEmail] = useState(email);
+  const [enrolled, setEnrolled] = useState<Set<number>>(() => (email ? readEnrolled(email) : new Set()));
+
+  // Re-hydrate whenever the signed-in identity changes (login, logout, or
+  // switching accounts on the same browser) so one user never sees another's
+  // enrollment data. Adjusted during render rather than in an effect, per
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  if (email !== loadedForEmail) {
+    setLoadedForEmail(email);
+    setEnrolled(email ? readEnrolled(email) : new Set());
+  }
 
   const enroll = useCallback((courseId: number) => {
+    if (!email) return;
     setEnrolled((prev) => {
       const next = new Set(prev).add(courseId);
       if (typeof window !== "undefined") {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
+        localStorage.setItem(storageKey(email), JSON.stringify([...next]));
       }
       return next;
     });
-  }, []);
+  }, [email]);
 
   const isEnrolled = useCallback((courseId: number) => enrolled.has(courseId), [enrolled]);
 

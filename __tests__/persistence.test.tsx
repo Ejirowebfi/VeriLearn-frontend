@@ -1,10 +1,24 @@
-import { render, act } from "@testing-library/react";
+import { render, act, waitFor } from "@testing-library/react";
+import { AuthProvider } from "../app/context/AuthContext";
 import { EnrollmentProvider, useEnrollment } from "../app/context/EnrollmentContext";
 import { ProgressProvider, useProgress } from "../app/context/ProgressContext";
 
-beforeEach(() => localStorage.clear());
+const TEST_EMAIL = "test@example.com";
+
+beforeEach(() => {
+  localStorage.clear();
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ id: 3, name: "Test User", email: TEST_EMAIL }),
+  });
+});
+
+afterEach(() => jest.restoreAllMocks());
 
 // --- EnrollmentContext ---
+// Enrollment/progress are scoped to the signed-in user, so every test here
+// renders through AuthProvider (with /api/auth/me mocked) rather than the
+// bare providers.
 
 function EnrollmentHarness({ onMount }: { onMount: (ctx: ReturnType<typeof useEnrollment>) => void }) {
   const ctx = useEnrollment();
@@ -12,33 +26,59 @@ function EnrollmentHarness({ onMount }: { onMount: (ctx: ReturnType<typeof useEn
   return null;
 }
 
-test("enroll() writes to localStorage", () => {
+test("enroll() writes to localStorage under the signed-in user", async () => {
   let ctx!: ReturnType<typeof useEnrollment>;
   render(
-    <EnrollmentProvider>
-      <EnrollmentHarness onMount={(c) => { ctx = c; }} />
-    </EnrollmentProvider>
+    <AuthProvider>
+      <EnrollmentProvider>
+        <EnrollmentHarness onMount={(c) => { ctx = c; }} />
+      </EnrollmentProvider>
+    </AuthProvider>
   );
 
-  act(() => ctx.enroll(42));
+  // enroll() no-ops until AuthContext finishes hydrating the user; retry
+  // until that async hydration lands.
+  await waitFor(() => {
+    act(() => ctx.enroll(42));
+    expect(localStorage.getItem(`verilearn_enrolled:${TEST_EMAIL}`)).not.toBeNull();
+  });
 
-  const stored = JSON.parse(localStorage.getItem("verilearn_enrolled")!);
+  const stored = JSON.parse(localStorage.getItem(`verilearn_enrolled:${TEST_EMAIL}`)!);
   expect(stored).toContain(42);
 });
 
-test("EnrollmentProvider re-hydrates from localStorage", () => {
-  localStorage.setItem("verilearn_enrolled", JSON.stringify([7, 8]));
+test("EnrollmentProvider re-hydrates from localStorage for the signed-in user", async () => {
+  localStorage.setItem(`verilearn_enrolled:${TEST_EMAIL}`, JSON.stringify([7, 8]));
 
   let ctx!: ReturnType<typeof useEnrollment>;
   render(
-    <EnrollmentProvider>
-      <EnrollmentHarness onMount={(c) => { ctx = c; }} />
-    </EnrollmentProvider>
+    <AuthProvider>
+      <EnrollmentProvider>
+        <EnrollmentHarness onMount={(c) => { ctx = c; }} />
+      </EnrollmentProvider>
+    </AuthProvider>
   );
 
-  expect(ctx.isEnrolled(7)).toBe(true);
+  await waitFor(() => expect(ctx.isEnrolled(7)).toBe(true));
   expect(ctx.isEnrolled(8)).toBe(true);
   expect(ctx.isEnrolled(1)).toBe(false);
+});
+
+test("EnrollmentProvider clears state when there is no signed-in user", async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => null });
+  localStorage.setItem(`verilearn_enrolled:${TEST_EMAIL}`, JSON.stringify([7]));
+
+  let ctx!: ReturnType<typeof useEnrollment>;
+  render(
+    <AuthProvider>
+      <EnrollmentProvider>
+        <EnrollmentHarness onMount={(c) => { ctx = c; }} />
+      </EnrollmentProvider>
+    </AuthProvider>
+  );
+
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  expect(ctx.isEnrolled(7)).toBe(false);
 });
 
 // --- ProgressContext ---
@@ -49,31 +89,38 @@ function ProgressHarness({ onMount }: { onMount: (ctx: ReturnType<typeof useProg
   return null;
 }
 
-test("markComplete() writes to localStorage", () => {
+test("markComplete() writes to localStorage under the signed-in user", async () => {
   let ctx!: ReturnType<typeof useProgress>;
   render(
-    <ProgressProvider>
-      <ProgressHarness onMount={(c) => { ctx = c; }} />
-    </ProgressProvider>
+    <AuthProvider>
+      <ProgressProvider>
+        <ProgressHarness onMount={(c) => { ctx = c; }} />
+      </ProgressProvider>
+    </AuthProvider>
   );
 
-  act(() => ctx.markComplete(3, 0));
+  await waitFor(() => {
+    act(() => ctx.markComplete(3, 0));
+    expect(localStorage.getItem(`verilearn_progress:${TEST_EMAIL}`)).not.toBeNull();
+  });
 
-  const stored = JSON.parse(localStorage.getItem("verilearn_progress")!);
+  const stored = JSON.parse(localStorage.getItem(`verilearn_progress:${TEST_EMAIL}`)!);
   expect(stored).toContain("3-0");
 });
 
-test("ProgressProvider re-hydrates from localStorage", () => {
-  localStorage.setItem("verilearn_progress", JSON.stringify(["5-0", "5-1"]));
+test("ProgressProvider re-hydrates from localStorage for the signed-in user", async () => {
+  localStorage.setItem(`verilearn_progress:${TEST_EMAIL}`, JSON.stringify(["5-0", "5-1"]));
 
   let ctx!: ReturnType<typeof useProgress>;
   render(
-    <ProgressProvider>
-      <ProgressHarness onMount={(c) => { ctx = c; }} />
-    </ProgressProvider>
+    <AuthProvider>
+      <ProgressProvider>
+        <ProgressHarness onMount={(c) => { ctx = c; }} />
+      </ProgressProvider>
+    </AuthProvider>
   );
 
-  expect(ctx.isComplete(5, 0)).toBe(true);
+  await waitFor(() => expect(ctx.isComplete(5, 0)).toBe(true));
   expect(ctx.isComplete(5, 1)).toBe(true);
   expect(ctx.isComplete(5, 2)).toBe(false);
 });
