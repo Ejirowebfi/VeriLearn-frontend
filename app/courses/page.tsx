@@ -33,7 +33,7 @@ function CoursesContent() {
   function toggleLevel(l: string) {
     setSelectedLevels((prev) => {
       const next = new Set(prev);
-      next.has(l) ? next.delete(l) : next.add(l);
+      if (next.has(l)) { next.delete(l); } else { next.add(l); }
       return next;
     });
   }
@@ -41,7 +41,7 @@ function CoursesContent() {
   function toggleTopic(t: string) {
     setSelectedTopics((prev) => {
       const next = new Set(prev);
-      next.has(t) ? next.delete(t) : next.add(t);
+      if (next.has(t)) { next.delete(t); } else { next.add(t); }
       return next;
     });
   }

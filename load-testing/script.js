@@ -74,7 +74,7 @@ export const options = {
 
 const pages = ['/', '/login', '/dashboard', '/courses'];
 
-export default function () {
+export default function loadTestPages() {
   for (const page of pages) {
     const res = http.get(`${BASE_URL}${page}`);
 
