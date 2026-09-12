@@ -37,6 +37,15 @@ jobs:
           flags: --out json=load-testing/results.json
         env:
           BASE_URL: http://localhost:3000
+          K6_SCENARIO: ci
+
+      - name: Upload k6 results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-results
+          path: load-testing/results.json
+          retention-days: 30
 
   e2e:
     runs-on: ubuntu-latest
