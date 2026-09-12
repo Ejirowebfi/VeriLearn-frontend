@@ -303,10 +303,10 @@ k6 streams metrics to InfluxDB in real time; Grafana renders the dashboard live 
 
 **`load-test`**
 
-1. Checkout, set up Node 20 with npm cache, `npm ci`.
+1. Checkout, set up Node 22 with npm cache, `npm ci`.
 2. Build and start the app in the background with `NODE_ENV=production` and `AUTH_SECRET` (from repository secrets, falling back to a CI-only value).
 3. `wait-on http://localhost:3000` with a 60s timeout.
-4. Run `grafana/k6-action@v0.3.1` against `load-testing/script.js` with `K6_SCENARIO=ci`, writing JSON results to `load-testing/results.json`.
+4. Install k6 via `grafana/setup-k6-action@v1`, then run `k6 run load-testing/script.js` with `K6_SCENARIO=ci`, writing JSON results to `load-testing/results.json`.
 5. Upload `results.json` as the `k6-results` artifact (30-day retention, `if: always()`), so a failing run's metrics are still inspectable.
 
 **`e2e`**
