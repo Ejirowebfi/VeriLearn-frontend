@@ -2,6 +2,8 @@
 
 VeriLearn is a learning platform frontend built with Next.js 16 (App Router), React 19, TypeScript 5, and Tailwind CSS v4. It ships a working product slice — signup and login against real API route handlers, a course catalogue with search and filtering, a lesson viewer, per-user enrollment and progress tracking, a dashboard and profile — backed by unit tests, Playwright end-to-end tests, and a k6 load testing and CI pipeline.
 
+**Live demo:** [verilearn-olive.vercel.app](https://verilearn-olive.vercel.app) — deployed to Vercel with the CLI (see [Deployment](#deployment)).
+
 ---
 
 ## Features
@@ -38,6 +40,8 @@ VeriLearn is a learning platform frontend built with Next.js 16 (App Router), Re
 | Load Testing | k6 | via Docker / GitHub Actions |
 | Metrics Storage | InfluxDB | via Docker |
 | Dashboards | Grafana | via Docker |
+| CI | GitHub Actions | Node 22; `checkout@v5`, `setup-node@v5`, `upload-artifact@v6` |
+| Hosting | Vercel | Vercel CLI 59 (Node.js 24.x runtime) |
 
 ---
 
@@ -82,6 +86,7 @@ VeriLearn-frontend/
 │   ├── docker-compose.yml             # InfluxDB + Grafana + k6 stack
 │   └── grafana/                       # Pre-provisioned dashboard + datasource
 ├── .github/workflows/load-test.yml    # CI: load test + e2e jobs on PRs to main
+├── .vercel/                           # Created by `vercel link` — project/org IDs (gitignored)
 ├── jest.config.ts / jest.setup.ts
 ├── playwright.config.ts
 ├── next.config.ts
@@ -317,6 +322,8 @@ k6 streams metrics to InfluxDB in real time; Grafana renders the dashboard live 
 
 A breached k6 threshold or a failing Playwright spec exits non-zero and fails the PR check.
 
+Both jobs use `actions/checkout@v5`, `actions/setup-node@v5`, and `actions/upload-artifact@v6`, which run on GitHub's Node 24 Actions runtime, and build the app itself on Node 22. k6 is installed with `grafana/setup-k6-action@v1` and invoked directly, replacing the archived `grafana/k6-action`.
+
 ---
 
 ## Environment Variables
@@ -332,27 +339,111 @@ A breached k6 threshold or a failing Playwright spec exits non-zero and fails th
 
 ## Deployment
 
-The easiest path is [Vercel](https://vercel.com/new) — connect the repository and Vercel detects Next.js automatically. **Set `AUTH_SECRET` in the project's environment variables before deploying**, or auth requests will throw.
+### Current production deployment
 
-For self-hosted deployments:
+| | |
+|---|---|
+| Live URL | [https://verilearn-olive.vercel.app](https://verilearn-olive.vercel.app) |
+| Vercel project | `verilearn` in the `dennis-ritchie1s-projects` scope |
+| Dashboard | [vercel.com/dennis-ritchie1s-projects/verilearn](https://vercel.com/dennis-ritchie1s-projects/verilearn) |
+| Deploy method | Vercel CLI (`vercel deploy --prod`) — **not** connected to GitHub, so pushes do not auto-deploy |
+| Runtime | Node.js 24.x |
+| Environment variables | `AUTH_SECRET` set for Production, Preview, and Development |
+
+`verilearn.vercel.app` is owned by another Vercel user, so Vercel assigned the `verilearn-olive.vercel.app` alias. Rename the project or add a custom domain under **Settings → Domains** to change it.
+
+An older project, `veri-learn-frontend` ([veri-learn-frontend.vercel.app](https://veri-learn-frontend.vercel.app)), still exists in the same scope and was left untouched.
+
+### Deploying with the Vercel CLI
+
+This is exactly how the current deployment was created. From the repository root:
 
 ```bash
-npm run build   # produces .next/
-npm run start   # serves on port 3000
+# 1. Sign in. Prints a device URL (vercel.com/oauth/device?user_code=XXXX-XXXX) to approve in a browser.
+npx vercel login
+
+# 2. Confirm which account you're on before creating anything.
+npx vercel whoami
+npx vercel teams ls
+
+# 3. Create (or reuse) the project and link this directory to it. Writes .vercel/ and .env.local, both gitignored.
+npx vercel link --yes --project verilearn --scope dennis-ritchie1s-projects
+
+# 4. Add a fresh AUTH_SECRET to every environment.
+SECRET="$(openssl rand -base64 32)"
+for target in production preview development; do
+  printf '%s' "$SECRET" | npx vercel env add AUTH_SECRET "$target" --scope dennis-ritchie1s-projects
+done
+
+# 5. Upload the source, build on Vercel, and promote to production.
+npx vercel deploy --prod --yes --scope dennis-ritchie1s-projects
 ```
 
-Because the user store is in-memory, serverless deployments will lose accounts created at runtime between cold starts. Wiring `app/lib/users.ts` to a real database is the next step for anything beyond a demo.
+To **redeploy** after changes, only step 5 is needed. To turn on auto-deploys from GitHub, run `npx vercel git connect` — the automatic connection during `vercel link` failed for this project, so it is currently CLI-only.
 
-See the [Next.js deployment docs](https://nextjs.org/docs/app/building-your-application/deploying) for Node.js server, Docker, and static export options.
+For non-interactive use (CI, scripts), create an access token at [vercel.com/account/tokens](https://vercel.com/account/tokens) and pass `--token "$VERCEL_TOKEN"` instead of logging in. Never commit or paste tokens; revoke any that are exposed.
+
+### Verifying a deployment
+
+The production deployment was smoke-tested after release:
+
+| Check | Expected | Result |
+|---|---|---|
+| `GET /`, `/courses`, `/login`, `/signup` | `200` | ✅ |
+| `GET /dashboard`, `/profile` while signed out | `307` redirect to `/login` via `proxy.ts` | ✅ |
+| `POST /api/auth/signup` | `200`, session cookie set | ✅ |
+| `GET /api/auth/me` with that cookie | `200`, returns the new user | ✅ — confirms `AUTH_SECRET` is live |
+
+```bash
+URL=https://verilearn-olive.vercel.app
+for p in / /courses /login /signup /dashboard /profile /api/auth/me; do
+  printf '%-16s %s\n' "$p" "$(curl -s -o /dev/null -w '%{http_code}' "$URL$p")"
+done
+```
+
+### Moving the project to another Vercel account
+
+Two supported routes, per [Vercel's project transfer docs](https://vercel.com/docs/projects/transferring-projects):
+
+- **Dashboard** — **Project → Settings → General → Transfer Project**. You must be an owner of the source team and a member of the destination team, so this only lists teams your current login belongs to.
+- **Claim link** — works with any account. Create a transfer code with the source account's token, then open the claim URL while signed into the destination account. The code is valid for 24 hours.
+
+  ```bash
+  curl -sS -X POST \
+    "https://api.vercel.com/projects/verilearn/transfer-request?slug=dennis-ritchie1s-projects" \
+    -H "Authorization: Bearer $VERCEL_TOKEN" -H "Content-Type: application/json" -d '{}'
+  # → {"code":"..."}
+  # Open: https://vercel.com/claim-deployment?code=<code>
+  ```
+
+Transfers are zero-downtime and carry over deployments, environment variables, domains, settings, and the Git link. Integrations, logs, and usage history do not transfer.
+
+**Deploying fresh to a different account instead:** `vercel login` and access tokens always resolve to whichever account the browser is signed into when you approve. Sign out of the current account (or use a private window), sign into the target account, check [vercel.com/account](https://vercel.com/account), and only then approve the device link or create the token. Confirm with `npx vercel whoami` before running `vercel link`. A second account needs its own email or GitHub login — the same login always opens the same Vercel account.
+
+### Self-hosting
+
+```bash
+AUTH_SECRET=$(openssl rand -base64 32) npm run build   # produces .next/
+AUTH_SECRET=… npm run start                            # serves on port 3000
+```
+
+See the [Next.js deployment docs](https://nextjs.org/docs/app/getting-started/deploying) for Node.js server, Docker, and static export options.
+
+### Production caveat: in-memory users
+
+The user store (`app/lib/users.ts`) lives in memory. On Vercel, each serverless instance has its own copy and loses it on cold start, so accounts created on the live site can disappear and may not be visible across instances. The seeded demo accounts always work. Wiring `app/lib/users.ts` to a real database is the next step for anything beyond a demo.
 
 ---
 
 ## Project History
 
-Shipped to `main`, most recent first:
+Shipped to `main`, most recent first. The Vercel deployment is an ops change with no code diff.
 
 | Change | Detail |
 |---|---|
+| Vercel production deployment | New `verilearn` project deployed via the Vercel CLI to [verilearn-olive.vercel.app](https://verilearn-olive.vercel.app); fresh `AUTH_SECRET` in all environments; pages, route protection, signup, and sessions smoke-tested in production |
+| CI modernization | Actions bumped to `checkout@v5`, `setup-node@v5`, `upload-artifact@v6` (Node 24 runtime); app built on Node 22; archived `grafana/k6-action` replaced by `setup-k6-action` + `k6 run` |
+| k6 results upload restored | `K6_SCENARIO=ci` and the `k6-results` artifact upload brought back into the load-test job |
 | Real signup, per-user data isolation, loud `AUTH_SECRET` requirement | `/api/auth/signup` creates real accounts; enrollment and progress namespaced per user; production refuses to sign tokens without a secret |
 | Security upgrades | Next upgraded to resolve a critical advisory; `npm audit fix` for transitive dependencies |
 | Lint and config cleanup | Remaining ESLint warnings cleared; lint and test configuration fixed |
@@ -376,7 +467,8 @@ Shipped to `main`, most recent first:
 
 The project uses a Wave Program model — maintainers post scoped issues that contributors pick up during sprint cycles. Good next steps:
 
-- **Persistence** — replace the in-memory user store with a real database, and move enrollment/progress server-side
+- **Persistence** — replace the in-memory user store with a real database, and move enrollment/progress server-side (required for reliable signups on the Vercel deployment)
+- **Deployment** — connect the `verilearn` Vercel project to GitHub for preview and auto-deploys, and add a custom domain
 - **Auth** — password reset, email verification, session refresh
 - **Content** — replace the seeded course data with a CMS or API
 - **Testing** — broaden unit coverage, add e2e specs for signup and lesson completion
